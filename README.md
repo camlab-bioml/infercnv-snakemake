@@ -2,7 +2,7 @@
 ## Step 1: install correct snakemake version
 
 ```bash
-pipenv install
+pipenv install --python 3.8
 pipenv shell
 ```
 
@@ -29,3 +29,9 @@ Key entries:
 - `input_rds`
 
 ## Step 3: Run snakemake
+
+```bash
+snakemake -j1 --configfile config/peng-test.yml --use-singularity --singularity-args "--bind /home/campbell/share/:/home/campbell/share/"
+```
+
+replacing `/home/campbell/share` with your directory.

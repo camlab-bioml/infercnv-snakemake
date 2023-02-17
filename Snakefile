@@ -21,7 +21,10 @@ rule run_infer_cnv:
         normal_type = config['normal_type'],
         cutoff = config['cutoff'],
         denoise = config['denoise'],
+        leiden_res = config['leiden_res']
     threads: 8
+    # log: out = "logs/{sample}_stdout.log",
+    #      err = "logs/{sample}_stderr.err"
     resources:
         mem_mb = 150000
     container:
@@ -29,5 +32,5 @@ rule run_infer_cnv:
     output:
         png = output + 'infercnv/{sample}/infercnv.png',
         obj = output + 'infercnv/{sample}/20_HMM_pred.repr_intensitiesHMMi6.leiden.hmm_mode-subclusters.Pnorm_0.5.infercnv_obj'
-    script:
-        'scripts/run_infercnv.R'
+    shell:
+        'Rscript scripts/run_infercnv.R --sce {input.sce} --out_dir {params.out_dir} --genelist {input.genelist} --annotation_column {params.annotation_column} --tumour_type "{params.tumour_type}" --normal_type "{params.normal_type}" --cutoff {params.cutoff} --denoise {params.denoise} --threads {threads} --leiden_res {params.leiden_res}'

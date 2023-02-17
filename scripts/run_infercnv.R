@@ -3,24 +3,45 @@ library(SingleCellExperiment)
 library(tibble)
 library(dplyr)
 library(tidyr)
+library(argparse)
+
+parser <- ArgumentParser()
+
+parser$add_argument("--sce", type="character")
+parser$add_argument("--annotation_column", type="character")
+parser$add_argument("--sample_column", type="character")
+parser$add_argument("--tumour_type", type="character")
+parser$add_argument("--normal_type", type="character")
+parser$add_argument("--cutoff", type="double")
+parser$add_argument("--denoise", type="logical")
+parser$add_argument("--genelist", type="character")
+parser$add_argument("--sample", type="character")
+parser$add_argument("--out_dir", type="character")
+parser$add_argument("--threads", type="integer")
+parser$add_argument("--leiden_res", type="double")
+
+args <- parser$parse_args()
+
+
+
 
 set.seed(123L)
 
-sce <- readRDS(snakemake@input$sce)
+sce <- readRDS(args$sce)
 
-sub_sample <- sce[, sce$sample == snakemake@wildcards$sample]
+sub_sample <- sce[, sce$sample == args$sample]
 
-sce_tumour <- sub_sample[,sub_sample$cell_type == snakemake@params$tumour_type]
+sce_tumour <- sub_sample[,sub_sample$cell_type == args$tumour_type]
 
-sce_normal <- sce[,sub_sample$cell_type == snakemake@params$normal_cell_types]
+sce_normal <- sce[,sub_sample$cell_type == args$normal_type]
 
 if(ncol(sce_normal) > 2000) {
     sce_normal <- sce_normal[, sample(ncol(sce_normal), 2000)]
 }
 
-patient_sce <- cbind(tumour, normal)
+patient_sce <- cbind(sce_tumour, sce_normal)
 
-cts <- assays(patient_sce, 'counts')
+cts <- assay(patient_sce, 'counts')
 
 cts_df <- cts |> 
     as.matrix() |>
@@ -36,7 +57,7 @@ cts <- cts_df |>
     as.data.frame() |>
     column_to_rownames("gene")
 
-cell_types <- colData(patient_sce)[,snakemake@params$annotation_column, drop=FALSE] |> 
+cell_types <- colData(patient_sce)[,args$annotation_column, drop=FALSE] |> 
     as.data.frame() |>
     rownames_to_column("cell_id")
 
@@ -57,20 +78,21 @@ normal_cell_types <- unique(cell_types$cell_type)
 normal_cell_types <- normal_cell_types[normal_cell_types != "Tumour epithelial"]
 
 infer <- CreateInfercnvObject(cts, 
-    snakemake@input$genelist, 
+    args$genelist, 
     cell_types, 
-    ref_group_names = snakemake@params$normal_type)
+    ref_group_names = args$normal_type)
 
 infercnv_obj <- infercnv::run(infer, 
-    cutoff = 0, 
-    out_dir = snakemake@params$out_dir, 
+    cutoff = args$cutoff, 
+    out_dir = args$out_dir,
     cluster_by_groups=TRUE, 
     plot_steps=FALSE, 
-    denoise = snakemake@params$denoise, 
-    noise_filter=snakemake@params$noise_filter, 
+    denoise = args$denoise 
+    # noise_filter=snakemake@params$noise_filter, 
     HMM_report_by = c('subcluster'), 
     tumor_subcluster_pval = 0.01,
     HMM=TRUE, 
     no_prelim_plot=TRUE, 
-    num_threads=snakemake@threads, 
+    num_threads=args$threads,
+    leiden_resolution = args$leiden_res, 
     png_res=360)
