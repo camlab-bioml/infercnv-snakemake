@@ -1,0 +1,6 @@
+
+version: "v1"
+
+samples: "config/path_to_samples.csv"
+input_rds: ""
+Annotation_column: "cell_type"
