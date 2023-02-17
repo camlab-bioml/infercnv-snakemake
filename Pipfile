@@ -1,0 +1,4 @@
+
+[packages]
+snakemake = "7.22.0"
+

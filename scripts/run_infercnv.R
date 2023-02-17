@@ -4,16 +4,23 @@ library(tibble)
 library(dplyr)
 library(tidyr)
 
+set.seed(123L)
+
 sce <- readRDS(snakemake@input$sce)
 
 sub_sample <- sce[, sce$sample == snakemake@wildcards$sample]
 
-tumour <- sub_sample[,sub_sample$cell_type == "Tumour epithelial"]
-normal <- sub_sample[,sub_sample$cell_type != "Tumour epithelial"]
+sce_tumour <- sub_sample[,sub_sample$cell_type == snakemake@params$tumour_type]
+
+sce_normal <- sce[,sub_sample$cell_type == snakemake@params$normal_cell_types]
+
+if(ncol(sce_normal) > 2000) {
+    sce_normal <- sce_normal[, sample(ncol(sce_normal), 2000)]
+}
 
 patient_sce <- cbind(tumour, normal)
 
-cts <- assays(patient_sce)$counts
+cts <- assays(patient_sce, 'counts')
 
 cts_df <- cts |> 
     as.matrix() |>
@@ -29,7 +36,7 @@ cts <- cts_df |>
     as.data.frame() |>
     column_to_rownames("gene")
 
-cell_types <- colData(patient_sce)[,'cell_type', drop=FALSE] |> 
+cell_types <- colData(patient_sce)[,snakemake@params$annotation_column, drop=FALSE] |> 
     as.data.frame() |>
     rownames_to_column("cell_id")
 
@@ -52,8 +59,18 @@ normal_cell_types <- normal_cell_types[normal_cell_types != "Tumour epithelial"]
 infer <- CreateInfercnvObject(cts, 
     snakemake@input$genelist, 
     cell_types, 
-    ref_group_names = normal_cell_types)
+    ref_group_names = snakemake@params$normal_type)
 
-infercnv_obj <- infercnv::run(infer, cutoff = 0, out_dir = snakemake@params$out_dir, cluster_by_groups=TRUE, plot_steps=FALSE, 
-                              denoise = TRUE, noise_filter=0.2, HMM_report_by = c('subcluster'), tumor_subcluster_pval = 0.01,
-                              HMM=TRUE, no_prelim_plot=TRUE, num_threads=snakemake@threads, png_res=360)
+infercnv_obj <- infercnv::run(infer, 
+    cutoff = 0, 
+    out_dir = snakemake@params$out_dir, 
+    cluster_by_groups=TRUE, 
+    plot_steps=FALSE, 
+    denoise = snakemake@params$denoise, 
+    noise_filter=snakemake@params$noise_filter, 
+    HMM_report_by = c('subcluster'), 
+    tumor_subcluster_pval = 0.01,
+    HMM=TRUE, 
+    no_prelim_plot=TRUE, 
+    num_threads=snakemake@threads, 
+    png_res=360)
