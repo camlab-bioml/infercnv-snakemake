@@ -10,12 +10,12 @@ parser <- ArgumentParser()
 parser$add_argument("--sce", type="character")
 parser$add_argument("--annotation_column", type="character")
 parser$add_argument("--sample_column", type="character")
+parser$add_argument("--sample", type="character")
 parser$add_argument("--tumour_type", type="character")
 parser$add_argument("--normal_type", type="character")
 parser$add_argument("--cutoff", type="double")
 parser$add_argument("--denoise", type="logical")
 parser$add_argument("--genelist", type="character")
-parser$add_argument("--sample", type="character")
 parser$add_argument("--out_dir", type="character")
 parser$add_argument("--threads", type="integer")
 parser$add_argument("--leiden_res", type="double")
@@ -31,9 +31,14 @@ sce <- readRDS(args$sce)
 
 sub_sample <- sce[, sce$sample == args$sample]
 
-sce_tumour <- sub_sample[,sub_sample$cell_type == args$tumour_type]
+## Some sanity checks
+stopifnot(ncol(sub_sample) > 10)
+stopifnot(args$annotation_column %in% names(colData(sce)))
+stopifnot(args$sample_column %in% names(colData(sce)))
 
-sce_normal <- sce[,sub_sample$cell_type == args$normal_type]
+sce_tumour <- sub_sample[,colData(sub_sample)[[args$annotation_column]] == args$tumour_type]
+
+sce_normal <- sce[,colData(sub_sample)[[args$annotation_column]] == args$normal_type]
 
 if(ncol(sce_normal) > 2000) {
     sce_normal <- sce_normal[, sample(ncol(sce_normal), 2000)]
@@ -57,29 +62,29 @@ cts <- cts_df |>
     as.data.frame() |>
     column_to_rownames("gene")
 
-cell_types <- colData(patient_sce)[,args$annotation_column, drop=FALSE] |> 
-    as.data.frame() |>
-    rownames_to_column("cell_id")
+# cell_types <- colData(patient_sce)[,args$annotation_column, drop=FALSE] |> 
+#     as.data.frame() |>
+#     rownames_to_column("cell_id")
 
-rem_cell_types <- group_by(cell_types, cell_type) |>
-    tally() |> 
-    filter(n < 2) |>
-    pull(cell_type)
+# rem_cell_types <- group_by(cell_types, cell_type) |>
+#     tally() |> 
+#     filter(n < 2) |>
+#     pull(cell_type)
 
-rem_cells <- cell_types |>
-    filter(cell_type %in% rem_cell_types) |>
-    pull(cell_id)
+# rem_cells <- cell_types |>
+#     filter(cell_type %in% rem_cell_types) |>
+#     pull(cell_id)
 
-cts <- select(cts, -all_of(rem_cells))
-cell_types <- filter(cell_types, !(cell_id %in% rem_cells)) |>
-    column_to_rownames("cell_id")
+# cts <- select(cts, -all_of(rem_cells))
+# cell_types <- filter(cell_types, !(cell_id %in% rem_cells)) |>
+#     column_to_rownames("cell_id")
 
-normal_cell_types <- unique(cell_types$cell_type)
-normal_cell_types <- normal_cell_types[normal_cell_types != "Tumour epithelial"]
+normal_cell_types <- args$normal_type #  unique(cell_types$cell_type)
+# normal_cell_types <- normal_cell_types[normal_cell_types != "Tumour epithelial"]
 
 infer <- CreateInfercnvObject(cts, 
     args$genelist, 
-    cell_types, 
+    c(args$normal_type, args$tumour_type), 
     ref_group_names = args$normal_type)
 
 infercnv_obj <- infercnv::run(infer, 

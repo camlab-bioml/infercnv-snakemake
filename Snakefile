@@ -33,4 +33,4 @@ rule run_infer_cnv:
         png = output + 'infercnv/{sample}/infercnv.png',
         obj = output + 'infercnv/{sample}/20_HMM_pred.repr_intensitiesHMMi6.leiden.hmm_mode-subclusters.Pnorm_0.5.infercnv_obj'
     shell:
-        'Rscript scripts/run_infercnv.R --sce {input.sce} --out_dir {params.out_dir} --genelist {input.genelist} --annotation_column {params.annotation_column} --tumour_type "{params.tumour_type}" --normal_type "{params.normal_type}" --cutoff {params.cutoff} --denoise {params.denoise} --threads {threads} --leiden_res {params.leiden_res}'
+        'Rscript scripts/run_infercnv.R --sce {input.sce} --out_dir {params.out_dir} --genelist {input.genelist} --annotation_column {params.annotation_column} --tumour_type "{params.tumour_type}" --normal_type "{params.normal_type}" --cutoff {params.cutoff} --denoise {params.denoise} --threads {threads} --leiden_res {params.leiden_res} --sample {wildcards.sample}'
