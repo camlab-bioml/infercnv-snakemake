@@ -23,22 +23,23 @@ parser$add_argument("--leiden_res", type="double")
 args <- parser$parse_args()
 
 
-
+message(args)
 
 set.seed(123L)
 
 sce <- readRDS(args$sce)
 
-sub_sample <- sce[, sce$sample == args$sample]
+sub_sample <- sce[, colData(sce)[[args$sample_column]] == args$sample]
 
 ## Some sanity checks
 stopifnot(ncol(sub_sample) > 10)
 stopifnot(args$annotation_column %in% names(colData(sce)))
 stopifnot(args$sample_column %in% names(colData(sce)))
 
+
 sce_tumour <- sub_sample[,colData(sub_sample)[[args$annotation_column]] == args$tumour_type]
 
-sce_normal <- sce[,colData(sub_sample)[[args$annotation_column]] == args$normal_type]
+sce_normal <- sce[,colData(sce)[[args$annotation_column]] == args$normal_type]
 
 if(ncol(sce_normal) > 2000) {
     sce_normal <- sce_normal[, sample(ncol(sce_normal), 2000)]
@@ -46,25 +47,39 @@ if(ncol(sce_normal) > 2000) {
 
 patient_sce <- cbind(sce_tumour, sce_normal)
 
+message(dim(sce_tumour))
+message(dim(sce_normal))
+message(dim(patient_sce))
+
+patient_sce <- patient_sce[, colData(patient_sce)[[args$annotation_column]] %in% c(args$normal_type, args$tumour_type) ]
+
 cts <- assay(patient_sce, 'counts')
 
-cts_df <- cts |> 
-    as.matrix() |>
-    as.data.frame() |> 
-    rownames_to_column("gene") |>
-    mutate(gene = gsub("ENSG[0-9]*-", "", gene))
+gene_symbols <- gsub("ENSG[0-9]*-", "", rownames(sce))
+count_mat <- as.matrix(assay(patient_sce, 'counts'))
+cts <- rowsum(count_mat, gene_symbols)
 
-cts <- cts_df |>
-    pivot_longer(-gene, names_to = "cell_id", values_to = "counts") |>
-    group_by(gene, cell_id) |>
-    summarize(counts = sum(counts)) |>
-    pivot_wider(names_from = "cell_id", values_from = "counts") |>
-    as.data.frame() |>
-    column_to_rownames("gene")
+message("Count matrix successfully created")
+message(dim(cts))
 
-# cell_types <- colData(patient_sce)[,args$annotation_column, drop=FALSE] |> 
+# cts_df <- cts |> 
+#     as.matrix() |>
+#     as.data.frame() |> 
+#     rownames_to_column("gene") |>
+#     mutate(gene = gsub("ENSG[0-9]*-", "", gene))
+
+# cts <- cts_df |>
+#     pivot_longer(-gene, names_to = "cell_id", values_to = "counts") |>
+#     group_by(gene, cell_id) |>
+#     summarize(counts = sum(counts)) |>
+#     pivot_wider(names_from = "cell_id", values_from = "counts") |>
 #     as.data.frame() |>
-#     rownames_to_column("cell_id")
+#     column_to_rownames("gene")
+
+cell_types <- colData(patient_sce)[,args$annotation_column, drop=FALSE] |> 
+    as.data.frame() #|>
+message(dim(cell_types))
+    # rownames_to_column("cell_id")
 
 # rem_cell_types <- group_by(cell_types, cell_type) |>
 #     tally() |> 
@@ -82,17 +97,19 @@ cts <- cts_df |>
 normal_cell_types <- args$normal_type #  unique(cell_types$cell_type)
 # normal_cell_types <- normal_cell_types[normal_cell_types != "Tumour epithelial"]
 
+message("Creating infercnv object")
 infer <- CreateInfercnvObject(cts, 
     args$genelist, 
-    c(args$normal_type, args$tumour_type), 
+    cell_types, 
     ref_group_names = args$normal_type)
 
+message("Running infercnv")
 infercnv_obj <- infercnv::run(infer, 
     cutoff = args$cutoff, 
     out_dir = args$out_dir,
     cluster_by_groups=TRUE, 
     plot_steps=FALSE, 
-    denoise = args$denoise 
+    denoise = args$denoise, 
     # noise_filter=snakemake@params$noise_filter, 
     HMM_report_by = c('subcluster'), 
     tumor_subcluster_pval = 0.01,

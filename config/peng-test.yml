@@ -1,7 +1,7 @@
 
 input_rds: peng-scRNASeq-manually-filtered-sce-tumour-normal-assigned.rds
 annotation_column: cell_type
-sample_column: donor
+sample_column: sample
 
 tumour_type: Tumour epithelial
 normal_type: Normal epithelial
