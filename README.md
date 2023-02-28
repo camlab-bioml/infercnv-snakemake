@@ -1,14 +1,16 @@
 
+A simple Snakemake pipeline to run [inferCNV](https://github.com/broadinstitute/infercnv) on [SingleCellExperiment](https://bioconductor.org/packages/release/bioc/html/SingleCellExperiment.html) objects.
+
 ## Step 1: Install relevant Python packages
 
-```bash
+```sh
 pipenv install --python 3.8
 pipenv shell
 ```
 
 ## Step 2: edit config file
 
-```
+```yaml
 input_rds: peng-scRNASeq-manually-filtered-sce-tumour-normal-assigned.rds
 annotation_column: cell_type
 sample_column: donor
@@ -36,7 +38,7 @@ Key entries:
 
 ## Step 3: Run the pipeline
 
-```bash
+```sh
 snakemake -j1 --configfile config/peng-test.yml --use-singularity --singularity-args "--bind /home/campbell/share/:/home/campbell/share/"
 ```
 
