@@ -7,7 +7,8 @@ output = 'output/' #+ config['version'] + '/'
 
 rule all:
     input:
-        expand(output + 'infercnv/{sample}/infercnv.png', sample = samples)
+        expand(output + 'infercnv/{sample}/infercnv.png', sample = samples),
+        expand(output + 'cna_heatmaps/{sample}_infercnv.png', sample = samples)
 
 
 rule run_infer_cnv:
@@ -35,3 +36,11 @@ rule run_infer_cnv:
         obj = output + 'infercnv/{sample}/20_HMM_pred.repr_intensitiesHMMi6.leiden.hmm_mode-subclusters.Pnorm_0.5.infercnv_obj'
     shell:
         'Rscript scripts/run_infercnv.R --sce {input.sce} --out_dir {params.out_dir} --genelist {input.genelist} --annotation_column {params.annotation_column} --tumour_type "{params.tumour_type}" --normal_type "{params.normal_type}" --cutoff {params.cutoff} --denoise {params.denoise} --threads {threads} --leiden_res {params.leiden_res} --sample {wildcards.sample} --sample_column {params.sample_column}'
+
+rule move_figs_to_standalone_dir:
+    input:
+        output+ "infercnv/{sample}/infercnv.20_HMM_predHMMi6.leiden.hmm_mode-subclusters.Pnorm_0.5.repr_intensities.png",
+    output:
+        output + "cna_heatmaps/{sample}_infercnv.png"
+    shell:
+        'cp {input} {output}'
